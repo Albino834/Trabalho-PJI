@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - Problemas Urbanos</title>
+    <link rel="stylesheet" href="..//css/style.css" />
+  </head>
+  <body>
+    <main>
+      <div class="login">
+        <div class="caixa">
+          <h1>Problemas Urbanos</h1>
+          <p>
+            Protótipo do nosso trabalho de denúncias sobre problemas urbanos
+          </p>
+          <form
+            onsubmit="event.preventDefault(); window.location.href='inicio.html'"
+          >
+            <label
+              >Nome ou e-mail<input
+                placeholder="Digite qualquer coisa" /></label
+            ><label
+              >Senha<input
+                type="password"
+                placeholder="Digite qualquer coisa" /></label
+            ><button class="principal">Entrar</button>
+          </form>
+          <button
+            class="link"
+            onclick="alert('Nesta demonstração, qualquer preenchimento permite entrar.')"
+          >
+            Esqueci minha senha
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>

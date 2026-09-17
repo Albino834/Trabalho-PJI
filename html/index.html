@@ -3,39 +3,350 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Login - Problemas Urbanos</title>
-    <link rel="stylesheet" href="..//css/style.css" />
+    <meta
+      name="description"
+      content="VivaCidade — registro colaborativo de problemas urbanos"
+    />
+    <title>VivaCidade — Problemas Urbanos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/style.css" />
   </head>
   <body>
-    <main>
-      <div class="login">
-        <div class="caixa">
-          <h1>Problemas Urbanos</h1>
+    <header class="topbar">
+      <a class="brand" href="#inicio"
+        ><span class="brand-mark">△</span
+        ><span
+          ><strong>VivaCidade</strong><small>OFICIAL</small
+          ><em>Monitoramento e Ação Urbana Coletiva</em></span
+        ></a
+      >
+      <button class="menu-toggle" id="menuToggle" aria-label="Abrir menu">
+        ☰
+      </button>
+      <nav id="mainNav">
+        <a href="#inicio">⌂ Início</a><a href="#mapa">⌖ Mapa Vivo</a
+        ><a href="#denuncias">▤ Denúncias</a
+        ><a href="#colaboradores">♧ ONGs & Parceiros</a
+        ><a href="#perfil">♙ Perfil</a
+        ><a class="nav-cta" href="#registrar">＋ Registrar Problema</a>
+      </nav>
+    </header>
+
+    <main class="shell">
+      <section class="view" data-view="inicio">
+        <div class="hero">
+          <div class="eyebrow">
+            ◈ Plataforma Integrada de Gestão Participativa
+          </div>
+          <h1>Transforme a sua rua com registro rápido e ação real.</h1>
           <p>
-            Protótipo do nosso trabalho de denúncias sobre problemas urbanos
+            Reporte buracos, iluminação inoperante, acúmulo de resíduos e pontos
+            críticos. Seus registros ficam salvos neste navegador e podem ser
+            enviados ao banco quando você conectar sua API.
           </p>
-          <form
-            onsubmit="event.preventDefault(); window.location.href='inicio.html'"
+          <div class="hero-actions">
+            <a class="button button-primary" href="#registrar"
+              >＋ Registrar Problema</a
+            ><a class="button button-ghost" href="#mapa"
+              >⌖ Abrir Mapa Interativo</a
+            >
+          </div>
+        </div>
+        <div id="stats" class="stats-grid"></div>
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow muted">Acesso rápido</span>
+            <h2>Ferramentas de cidadania</h2>
+          </div>
+        </div>
+        <div class="quick-grid">
+          <a href="#registrar" class="quick-card"
+            ><b>＋</b
+            ><span
+              ><strong>Novo Registro</strong
+              ><small>Cadastre fotos e endereço</small></span
+            >→</a
+          ><a href="#mapa" class="quick-card"
+            ><b>⌖</b
+            ><span
+              ><strong>Ver Mapa Geral</strong
+              ><small>Marcadores interativos</small></span
+            >→</a
+          ><a href="#denuncias" class="quick-card"
+            ><b>▤</b
+            ><span
+              ><strong>Minhas Denúncias</strong
+              ><small>Acompanhe protocolos</small></span
+            >→</a
+          ><a href="#colaboradores" class="quick-card"
+            ><b>♧</b
+            ><span
+              ><strong>ONGs Parceiras</strong
+              ><small>Projetos voluntários</small></span
+            >→</a
           >
+        </div>
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow muted">Atualizações</span>
+            <h2>Ocorrências recentes</h2>
+          </div>
+          <a href="#denuncias" class="text-link">Ver todas →</a>
+        </div>
+        <div id="recentComplaints" class="cards-grid"></div>
+      </section>
+
+      <section class="view" data-view="registrar" hidden>
+        <div class="page-title">
+          <span class="eyebrow muted">Protocolo Cidadão Digital</span>
+          <h1>Registrar problema urbano</h1>
+          <p>Preencha os dados; tudo é salvo no armazenamento do navegador.</p>
+        </div>
+        <form id="complaintForm" class="panel form-panel">
+          <div class="form-grid">
             <label
-              >Nome ou e-mail<input
-                placeholder="Digite qualquer coisa" /></label
+              >Categoria<select id="category" required>
+                <option value="buraco_na_rua">Buraco na rua</option>
+                <option value="lixo_acumulado">Lixo e entulho</option>
+                <option value="iluminacao_publica">Iluminação pública</option>
+                <option value="alagamento">Alagamento</option>
+                <option value="calcada_danificada">Calçada danificada</option>
+                <option value="outro">Outro</option>
+              </select></label
             ><label
-              >Senha<input
-                type="password"
-                placeholder="Digite qualquer coisa" /></label
-            ><button class="principal">Entrar</button>
-          </form>
-          <button
-            class="link"
-            onclick="alert('Nesta demonstração, qualquer preenchimento permite entrar.')"
+              >Título<input
+                id="title"
+                required
+                maxlength="255"
+                placeholder="Ex.: Buraco grande em frente ao número 120" /></label
+            ><label class="full"
+              >Descrição<textarea
+                id="description"
+                required
+                minlength="8"
+                placeholder="Explique o problema, impacto e há quanto tempo existe."
+              ></textarea></label
+            ><label
+              >Gravidade<select id="severity">
+                <option value="baixa">Baixa</option>
+                <option value="media" selected>Média</option>
+                <option value="alta">Alta</option>
+                <option value="urgente">Urgente</option>
+              </select></label
+            ><label
+              >Seu nome<input
+                id="reporterName"
+                value="Morador Local"
+                maxlength="120" /></label
+            ><label
+              >E-mail<input
+                id="reporterEmail"
+                type="email"
+                value="morador@cidade.org"
+                maxlength="180" /></label
+            ><label class="full"
+              >Endereço específico<input
+                id="address"
+                required
+                maxlength="255"
+                value="Rua das Flores, 120" /></label
+            ><label
+              >Bairro / Região<input
+                id="neighborhood"
+                maxlength="120"
+                value="Jardim Central"
+            /></label>
+            <div class="location-box">
+              <button type="button" class="button button-outline" id="useGps">
+                ⌖ Usar minha localização GPS</button
+              ><span id="coordinates">Coordenadas: -23.550520, -46.633308</span>
+            </div>
+            <label class="full upload-label"
+              >Foto da ocorrência<input
+                id="complaintImage"
+                type="file"
+                accept="image/*"
+              /><span id="imageName">Nenhuma imagem selecionada</span></label
+            >
+          </div>
+          <div class="form-actions">
+            <a class="button button-ghost" href="#inicio">Cancelar</a
+            ><button class="button button-primary" type="submit">
+              ✓ Salvar denúncia
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="view" data-view="denuncias" hidden>
+        <div class="page-title row-title">
+          <div>
+            <span class="eyebrow muted">Histórico local persistente</span>
+            <h1>Denúncias & ocorrências</h1>
+            <p>Busque, apoie e altere o status das ocorrências salvas.</p>
+          </div>
+          <a class="button button-primary" href="#registrar"
+            >＋ Nova denúncia</a
           >
-            Esqueci minha senha
+        </div>
+        <div class="filters">
+          <input
+            id="search"
+            placeholder="Buscar por código, rua ou palavra-chave..."
+          /><select id="statusFilter">
+            <option value="">Todos os status</option>
+            <option value="em_analise">Em análise</option>
+            <option value="em_andamento">Em andamento</option>
+            <option value="resolvido">Resolvido</option></select
+          ><select id="categoryFilter">
+            <option value="">Todas as categorias</option>
+            <option value="buraco_na_rua">Buracos</option>
+            <option value="lixo_acumulado">Lixo</option>
+            <option value="iluminacao_publica">Iluminação</option>
+            <option value="alagamento">Alagamentos</option>
+          </select>
+        </div>
+        <div id="complaintsList" class="stack"></div>
+      </section>
+
+      <section class="view" data-view="mapa" hidden>
+        <div class="page-title row-title">
+          <div>
+            <span class="eyebrow muted">Geolocalização</span>
+            <h1>Mapa Vivo da Cidade</h1>
+            <p>Use o GPS real ou os pontos geocodificados das denúncias.</p>
+          </div>
+          <button class="button button-outline" id="mapGps">
+            ⌖ Centralizar no meu GPS
           </button>
         </div>
-      </div>
-    </main>
+        <div class="map-layout">
+          <div class="map-panel">
+            <div id="mapStatus" class="map-status">
+              Mapa OpenStreetMap pronto
+            </div>
+            <iframe
+              id="mapFrame"
+              title="Mapa das ocorrências"
+              loading="lazy"
+            ></iframe>
+          </div>
+          <aside id="mapDetails" class="panel map-details">
+            <div class="empty-state">
+              Selecione uma ocorrência na lista abaixo para ver detalhes.
+            </div>
+          </aside>
+        </div>
+        <div id="mapCards" class="cards-grid compact"></div>
+      </section>
 
-    <script src="script.js"></script>
+      <section class="view" data-view="perfil" hidden>
+        <div class="page-title">
+          <span class="eyebrow muted">Preferências</span>
+          <h1>Meu perfil</h1>
+          <p>As alterações ficam salvas automaticamente no localStorage.</p>
+        </div>
+        <div class="two-col">
+          <form id="profileForm" class="panel form-panel">
+            <div class="avatar-row">
+              <div id="avatarPreview" class="avatar">♙</div>
+              <label class="button button-outline"
+                >Escolher foto<input
+                  id="avatarImage"
+                  type="file"
+                  accept="image/*"
+                  hidden
+              /></label>
+            </div>
+            <label>Nome completo<input id="profileName" required /></label
+            ><label
+              >E-mail<input id="profileEmail" required type="email" /></label
+            ><label
+              >Bairro de atuação<input
+                id="profileNeighborhood"
+                required /></label
+            ><label class="check-row"
+              ><input id="notifications" type="checkbox" /> Receber notificações
+              de andamento</label
+            ><button class="button button-primary" type="submit">
+              Salvar alterações
+            </button>
+          </form>
+          <div class="panel summary-panel">
+            <span class="eyebrow muted">Resumo</span>
+            <h2 id="profileSummary">Cidadão Participativo</h2>
+            <p id="profileSummaryEmail"></p>
+            <hr />
+            <p><strong id="profileCount">0</strong> denúncias cadastradas</p>
+            <p class="success">● Conta ativa</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" data-view="colaboradores" hidden>
+        <div class="page-title row-title">
+          <div>
+            <span class="eyebrow muted">Rede de impacto</span>
+            <h1>ONGs & parceiros</h1>
+            <p>Organizações cadastradas pela comunidade.</p>
+          </div>
+          <button class="button button-primary" id="showOrgForm">
+            ＋ Cadastrar organização
+          </button>
+        </div>
+        <form id="orgForm" class="panel form-panel" hidden>
+          <div class="form-grid">
+            <label
+              >Nome da organização<input
+                id="orgName"
+                required
+                maxlength="140" /></label
+            ><label
+              >Categoria<input
+                id="orgCategory"
+                required
+                maxlength="100" /></label
+            ><label class="full"
+              >Descrição curta<input
+                id="orgTagline"
+                required
+                maxlength="255" /></label
+            ><label>E-mail de contato<input id="orgEmail" type="email" /></label
+            ><label>Telefone<input id="orgPhone" /></label
+            ><label class="full"
+              >Áreas de atuação<textarea
+                id="orgFocus"
+                required
+              ></textarea></label
+            ><label class="full upload-label"
+              >Imagem<input id="orgImage" type="file" accept="image/*" /><span
+                id="orgImageName"
+                >Nenhuma imagem selecionada</span
+              ></label
+            >
+          </div>
+          <div class="form-actions">
+            <button type="button" class="button button-ghost" id="cancelOrg">
+              Cancelar</button
+            ><button class="button button-primary">Salvar organização</button>
+          </div>
+        </form>
+        <div id="orgList" class="cards-grid"></div>
+      </section>
+    </main>
+    <div id="toast" class="toast" role="status"></div>
+    <footer>
+      VivaCidade — Projeto Cidadão de Gestão de Problemas Urbanos.
+      <span
+        >Dados persistidos neste navegador • GPS do dispositivo • Mapa
+        aberto</span
+      >
+    </footer>
+    <script src="/java/app.js"></script>
   </body>
 </html>

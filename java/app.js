@@ -167,7 +167,7 @@ function categoryLabel(c) {
   );
 }
 function complaintCard(c, list = false) {
-  return `<article class="complaint-card ${list ? "list" : ""}">${c.imageUrl ? `<img src="${esc(c.imageUrl)}" alt="Imagem de ${esc(c.title)}">` : ""}<div><div class="card-top"><span class="code">${esc(c.code)}</span><span class="badge status-${esc(c.status)}">${statusLabel(c.status)}</span></div><h3>${esc(c.title)}</h3><p>${esc(c.description)}</p><div class="meta-row"><span>⌖ ${esc(c.address)} • ${esc(c.neighborhood || "")}</span><span>Gravidade: <b>${esc(c.severity)}</b></span></div><div class="meta-row"><span>Registrado por <b>${esc(c.reporterName || "Cidadão Anônimo")}</b></span><span>${new Date(c.createdAt).toLocaleDateString("pt-BR")}</span></div></div>${list ? `<div class="card-actions"><span class="meta-row">♨ ${c.supportCount || 0} apoios</span><button class="button button-outline support" data-id="${c.id}">Apoiar</button><select class="status-edit" data-id="${c.id}"><option value="em_analise" ${c.status === "em_analise" ? "selected" : ""}>Em análise</option><option value="em_andamento" ${c.status === "em_andamento" ? "selected" : ""}>Em andamento</option><option value="resolvido" ${c.status === "resolvido" ? "selected" : ""}>Resolvido</option></select></div>` : ""}</article>`;
+  return `<article class="complaint-card ${list ? "list" : ""}">${c.imageUrl ? `<img src="${esc(c.imageUrl)}" alt="Imagem de ${esc(c.title)}">` : ""}<div><div class="card-top"><span class="code">${esc(c.code)}</span><span class="badge status-${esc(c.status)}">${statusLabel(c.status)}</span></div><h3>${esc(c.title)}</h3><p>${esc(c.description)}</p><div class="meta-row"><span>⌖ ${esc(c.address)} • ${esc(c.neighborhood || "")}</span><span>Gravidade: <b>${esc(c.severity)}</b></span></div><div class="meta-row"><span>Registrado por <b>${esc(c.reporterName || "Cidadão Anônimo")}</b></span><span>${new Date(c.createdAt).toLocaleDateString("pt-BR")}</span></div></div>${list ? `<div class="card-actions"><span class="meta-row">♨ ${c.supportCount || 0} apoios</span><button class="button button-outline support" data-id="${c.id}">Apoiar</button><select class="status-edit" data-id="${c.id}"><option value="em_analise" ${c.status === "em_analise" ? "selected" : ""}>Em análise</option><option value="em_andamento" ${c.status === "em_andamento" ? "selected" : ""}>Em andamento</option><option value="resolvido" ${c.status === "resolvido" ? "selected" : ""}>Resolvido</option></select><button class="button button-danger delete-complaint" data-id="${c.id}">Excluir</button></div>` : ""}</article>`;
 }
 function renderHome() {
   const data = complaints();
@@ -227,16 +227,92 @@ function renderComplaints() {
         }
       }),
   );
+  $$(".delete-complaint").forEach(
+    (button) =>
+      (button.onclick = () => {
+        const item = complaints().find((c) => c.id == button.dataset.id);
+        if (!item || !confirm(`Excluir a denúncia ${item.code}?`)) return;
+        save(
+          KEYS.complaints,
+          complaints().filter((c) => c.id != item.id),
+        );
+        renderComplaints();
+        renderHome();
+        toast("Denúncia excluída.");
+      }),
+  );
 }
+let liveMap;
+let liveMarkers = [];
 function updateMap(lat = -23.55052, lng = -46.633308) {
-  const delta = 0.035;
-  $("#mapFrame").src =
-    `https://www.openstreetmap.org/export/embed.html?bbox=${lng - delta}%2C${lat - delta}%2C${lng + delta}%2C${lat + delta}&layer=mapnik&marker=${lat}%2C${lng}`;
+  if (!window.L || !$("#mapCanvas")) {
+    $("#mapStatus").textContent = "Mapa indisponível: confira sua conexão.";
+    return;
+  }
+  if (liveMap && liveMap.getContainer() !== $("#mapCanvas")) {
+    liveMap.remove();
+    liveMap = null;
+    liveMarkers = [];
+  }
+  if (!liveMap) {
+    liveMap = L.map("mapCanvas", { zoomControl: true }).setView([lat, lng], 12);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "© OpenStreetMap contributors",
+    }).addTo(liveMap);
+  } else {
+    liveMap.setView([lat, lng], 14);
+  }
+  requestAnimationFrame(() => liveMap?.invalidateSize(true));
+  setTimeout(() => liveMap?.invalidateSize(true), 120);
   $("#mapStatus").textContent =
     `Mapa centrado em ${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}`;
 }
 function renderMap() {
   const data = complaints();
+  if (liveMap) {
+    liveMarkers.forEach((marker) => marker.remove());
+    liveMarkers = [];
+  }
+  updateMap();
+  data.forEach((c, index) => {
+    const lat = Number(c.latitude);
+    const lng = Number(c.longitude);
+    if (!liveMap || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    const isFallbackLocation = lat === -23.55052 && lng === -46.633308;
+    const markerPosition = isFallbackLocation
+      ? [
+          lat + (index - data.length / 2) * 0.0012,
+          lng + (index - data.length / 2) * 0.0012,
+        ]
+      : [lat, lng];
+    const marker = L.marker(markerPosition, {
+      icon: L.divIcon({
+        className: "vivacidade-marker",
+        html: `<span>${index + 1}</span>`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 30],
+      }),
+      title: c.title,
+    })
+      .addTo(liveMap)
+      .bindPopup(
+        `<strong>${esc(c.code)} — ${esc(c.title)}</strong><br>${esc(c.address)}`,
+      );
+    marker.on("click", () => showMapDetails(c, data));
+    liveMarkers.push(marker);
+  });
+  const fitMarkers = () => {
+    if (!liveMap || liveMarkers.length < 1) return;
+    liveMap.invalidateSize(true);
+    if (liveMarkers.length > 1) {
+      liveMap.fitBounds(L.featureGroup(liveMarkers).getBounds().pad(0.2));
+    } else {
+      liveMap.setView(liveMarkers[0].getLatLng(), 15);
+    }
+  };
+  requestAnimationFrame(fitMarkers);
+  setTimeout(fitMarkers, 180);
   $("#mapCards").innerHTML = data
     .map(
       (c) =>
@@ -248,17 +324,22 @@ function renderMap() {
       (card.onclick = () => {
         const c = data.find((x) => x.id == card.dataset.mapId);
         if (!c) return;
-        updateMap(Number(c.latitude), Number(c.longitude));
-        $("#mapDetails").innerHTML =
-          `${c.imageUrl ? `<img src="${esc(c.imageUrl)}" alt="" class="detail-image">` : ""}<span class="code">${esc(c.code)}</span><h2>${esc(c.title)}</h2><p>${esc(c.description)}</p><p><b>Endereço:</b> ${esc(c.address)}, ${esc(c.neighborhood || "")}</p><p><b>Status:</b> ${statusLabel(c.status)}</p><button class="button button-primary support" data-id="${c.id}">Apoiar ocorrência</button>`;
-        $("#mapDetails .support").onclick = () => {
-          c.supportCount = (c.supportCount || 0) + 1;
-          save(KEYS.complaints, data);
-          toast("Apoio salvo no navegador.");
-        };
+        showMapDetails(c, data);
       }),
   );
-  updateMap();
+}
+function showMapDetails(c, data) {
+  updateMap(Number(c.latitude), Number(c.longitude));
+  $("#mapDetails").innerHTML =
+    `${c.imageUrl ? `<img src="${esc(c.imageUrl)}" alt="" class="detail-image">` : ""}<span class="code">${esc(c.code)}</span><h2>${esc(c.title)}</h2><p>${esc(c.description)}</p><p><b>Endereço:</b> ${esc(c.address)}, ${esc(c.neighborhood || "")}</p><p><b>Status:</b> ${statusLabel(c.status)}</p><div class="detail-actions"><button class="button button-primary support" data-id="${c.id}">Apoiar ocorrência</button><button class="button button-outline back-to-map" type="button">← Voltar ao mapa</button></div>`;
+  $("#mapDetails .back-to-map").onclick = () => {
+    $("#mapCanvas").scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+  $("#mapDetails .support").onclick = () => {
+    c.supportCount = (c.supportCount || 0) + 1;
+    save(KEYS.complaints, data);
+    toast("Apoio salvo no navegador.");
+  };
 }
 function renderProfile() {
   const p = profile();
@@ -278,9 +359,22 @@ function renderOrgs() {
   $("#orgList").innerHTML = data
     .map(
       (o) =>
-        `<article class="org-card">${o.imageUrl ? `<img src="${esc(o.imageUrl)}" alt="Imagem de ${esc(o.name)}">` : ""}<span class="eyebrow muted">${esc(o.category)}</span><h3>${esc(o.name)}</h3><p>${esc(o.tagline)}</p><p>${esc(o.focusAreas)}</p><div class="meta-row">♧ ${o.activeVolunteers} voluntários ativos</div></article>`,
+        `<article class="org-card">${o.imageUrl ? `<img src="${esc(o.imageUrl)}" alt="Imagem de ${esc(o.name)}">` : ""}<span class="eyebrow muted">${esc(o.category)}</span><h3>${esc(o.name)}</h3><p>${esc(o.tagline)}</p><p>${esc(o.focusAreas)}</p><div class="meta-row">♧ ${o.activeVolunteers} voluntários ativos</div><button class="button button-danger delete-org" data-id="${o.id}">Excluir organização</button></article>`,
     )
     .join("");
+  $$(".delete-org").forEach(
+    (button) =>
+      (button.onclick = () => {
+        const item = orgs().find((o) => o.id == button.dataset.id);
+        if (!item || !confirm(`Excluir a organização ${item.name}?`)) return;
+        save(
+          KEYS.orgs,
+          orgs().filter((o) => o.id != item.id),
+        );
+        renderOrgs();
+        toast("Organização excluída.");
+      }),
+  );
 }
 function fileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -295,11 +389,13 @@ function fileAsDataUrl(file) {
   });
 }
 async function geocode(address, neighborhood) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4000);
   try {
     const query = encodeURIComponent(`${address}, ${neighborhood}, Brasil`);
     const response = await fetch(
       `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${query}`,
-      { headers: { Accept: "application/json" } },
+      { headers: { Accept: "application/json" }, signal: controller.signal },
     );
     const result = await response.json();
     return result[0]
@@ -307,6 +403,8 @@ async function geocode(address, neighborhood) {
       : null;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 function getGps() {
@@ -348,6 +446,24 @@ function setupForms() {
     } catch (err) {
       toast(err.message);
     }
+  };
+  $("#loginForm").onsubmit = (e) => {
+    e.preventDefault();
+    const email = $("#loginEmail").value.trim().toLowerCase();
+    const password = $("#loginPassword").value;
+    const accounts = load("vivacidade.accounts", {});
+    if (accounts[email] && accounts[email] !== btoa(password)) {
+      toast("Senha incorreta para este e-mail.");
+      return;
+    }
+    accounts[email] = btoa(password);
+    save("vivacidade.accounts", accounts);
+    save("vivacidade.currentUser", {
+      email,
+      loggedInAt: new Date().toISOString(),
+    });
+    toast("Login realizado e salvo neste navegador.");
+    location.hash = "perfil";
   };
   $("#complaintForm").onsubmit = async (e) => {
     e.preventDefault();

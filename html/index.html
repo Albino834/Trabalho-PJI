@@ -14,6 +14,10 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
     <link rel="stylesheet" href="/css/style.css" />
   </head>
   <body>
@@ -32,12 +36,41 @@
         <a href="#inicio">⌂ Início</a><a href="#mapa">⌖ Mapa Vivo</a
         ><a href="#denuncias">▤ Denúncias</a
         ><a href="#colaboradores">♧ ONGs & Parceiros</a
-        ><a href="#perfil">♙ Perfil</a
+        ><a href="#perfil">♙ Perfil</a><a href="#login">♙ Login</a
         ><a class="nav-cta" href="#registrar">＋ Registrar Problema</a>
       </nav>
     </header>
 
     <main class="shell">
+      <section class="view" data-view="login" hidden>
+        <div class="page-title">
+          <span class="eyebrow muted">Acesso cidadão</span>
+          <h1>Entrar na VivaCidade</h1>
+          <p>Use sua conta para acompanhar denúncias e participar da cidade.</p>
+        </div>
+        <form id="loginForm" class="panel form-panel auth-panel">
+          <div class="auth-badge">△</div>
+          <label
+            >E-mail<input
+              id="loginEmail"
+              type="email"
+              required
+              placeholder="voce@exemplo.com"
+          /></label>
+          <label
+            >Senha<input
+              id="loginPassword"
+              type="password"
+              required
+              minlength="6"
+              placeholder="Mínimo de 6 caracteres"
+          /></label>
+          <button class="button button-primary" type="submit">Entrar</button>
+          <p class="auth-hint">
+            Demo local: no primeiro acesso, uma conta é criada neste navegador.
+          </p>
+        </form>
+      </section>
       <section class="view" data-view="inicio">
         <div class="hero">
           <div class="eyebrow">
@@ -230,11 +263,10 @@
             <div id="mapStatus" class="map-status">
               Mapa OpenStreetMap pronto
             </div>
-            <iframe
-              id="mapFrame"
-              title="Mapa das ocorrências"
-              loading="lazy"
-            ></iframe>
+            <div
+              id="mapCanvas"
+              aria-label="Mapa interativo das denúncias"
+            ></div>
           </div>
           <aside id="mapDetails" class="panel map-details">
             <div class="empty-state">
@@ -347,6 +379,7 @@
         aberto</span
       >
     </footer>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="/java/app.js"></script>
   </body>
 </html>

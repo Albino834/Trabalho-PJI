@@ -7,7 +7,7 @@ var DB = {
   user: 'vivacidade.currentUser'
 };
 
-var defaultLocation = { lat: -23.55052, lng: -46.633308 };
+var defaultLocation = { lat: -15.793889, lng: -47.882778 };
 var complaintImage = '';
 var map = null;
 var markers = [];
@@ -248,41 +248,50 @@ function getGps() {
 }
 
 async function locateAddress(address, neighborhood, cityState) {
-  var parts = address.split(/\s+-\s+/);
-  var street = parts[0].trim();
-  var area = parts[1] || neighborhood || '';
-  var place = cityState || 'São Paulo - SP';
-  var city = normalize(place.split(/\s+-\s+/)[0]);
-  var queries = [street + ', ' + area + ', ' + place + ', Brasil', street + ', ' + place + ', Brasil', area + ', ' + place + ', Brasil'];
+  var queryBase = [address, neighborhood, cityState, 'Brasil'].filter(Boolean).join(', ');
+  var queries = [
+    queryBase,
+    [address, cityState, 'Brasil'].filter(Boolean).join(', '),
+    [neighborhood, cityState, 'Brasil'].filter(Boolean).join(', ')
+  ];
 
   for (var i = 0; i < queries.length; i++) {
     try {
-      var photon = await fetch('https://photon.komoot.io/api/?limit=5&q=' + encodeURIComponent(queries[i]));
+      var photon = await fetch('https://photon.komoot.io/api/?limit=5&q=' + encodeURIComponent(queries[i]), { headers: { 'Accept': 'application/json' } });
       var photonData = await photon.json();
-      for (var p = 0; p < photonData.features.length; p++) {
-        var props = photonData.features[p].properties || {};
-        var resultCity = normalize(props.city || props.town || props.municipality);
-        var resultState = normalize(props.state);
-        if ((!resultState || resultState.indexOf('sao paulo') >= 0) && (!resultCity || resultCity.indexOf(city) >= 0)) {
-          return { lat: Number(photonData.features[p].geometry.coordinates[1]), lng: Number(photonData.features[p].geometry.coordinates[0]) };
+      for (var p = 0; p < (photonData.features || []).length; p++) {
+        var feature = photonData.features[p];
+        if (feature && feature.geometry) {
+          return { lat: Number(feature.geometry.coordinates[1]), lng: Number(feature.geometry.coordinates[0]) };
         }
       }
     } catch (error) {}
 
     try {
-      var osm = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=5&q=' + encodeURIComponent(queries[i]));
+      var osm = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=5&countrycodes=br&q=' + encodeURIComponent(queries[i]), { headers: { 'Accept-Language': 'pt-BR' } });
       var osmData = await osm.json();
-      for (var o = 0; o < osmData.length; o++) {
-        var addressData = osmData[o].address || {};
-        var osmCity = normalize(addressData.city || addressData.town || addressData.municipality);
-        var osmState = normalize(addressData.state);
-        if ((!osmState || osmState.indexOf('sao paulo') >= 0) && (!osmCity || osmCity.indexOf(city) >= 0)) {
-          return { lat: Number(osmData[o].lat), lng: Number(osmData[o].lon) };
-        }
-      }
+      if (osmData.length) return { lat: Number(osmData[0].lat), lng: Number(osmData[0].lon) };
     } catch (error) {}
   }
   return null;
+}
+
+async function reverseGeocode(lat, lng) {
+  try {
+    var response = await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lng), { headers: { 'Accept-Language': 'pt-BR' } });
+    var data = await response.json();
+    var result = data.address || {};
+    var road = result.road || result.pedestrian || result.suburb || '';
+    var houseNumber = result.house_number || '';
+    var neighborhood = result.suburb || result.neighbourhood || result.district || '';
+    var city = result.city || result.town || result.municipality || result.village || '';
+    var state = result.state || '';
+    if (road) $('#address').value = (road + (houseNumber ? ', ' + houseNumber : '')).trim();
+    if (neighborhood) $('#neighborhood').value = neighborhood;
+    if (city) $('#cityState').value = city + (state ? ' - ' + state : '');
+  } catch (error) {
+    // As coordenadas continuam válidas mesmo quando o endereço não puder ser resolvido.
+  }
 }
 
 function setupForms() {
@@ -316,11 +325,41 @@ function setupForms() {
   $('#useGps').onclick = async function () {
     try {
       var coords = await getGps();
-      $('#complaintForm').dataset.lat = coords.latitude;
-      $('#complaintForm').dataset.lng = coords.longitude;
-      $('#coordinates').textContent = 'GPS: ' + coords.latitude.toFixed(6) + ', ' + coords.longitude.toFixed(6);
-      message('GPS encontrado.');
+      setComplaintLocation(coords.latitude, coords.longitude, true);
+      initializeLocationPicker(coords.latitude, coords.longitude);
+      $('#locationPickerWrap').hidden = false;
+      message('Localização GPS encontrada.');
     } catch (error) { message(error.message); }
+  };
+
+  $('#openLocationPicker').onclick = function () {
+    var form = $('#complaintForm');
+    var lat = Number(form.dataset.lat);
+    var lng = Number(form.dataset.lng);
+    $('#locationPickerWrap').hidden = false;
+    initializeLocationPicker(lat, lng);
+  };
+
+  $('#searchLocation').onclick = async function () {
+    var query = $('#locationSearch').value.trim();
+    if (!query) return message('Digite o endereço que deseja encontrar.');
+    try {
+      var address = await locateAddress(query, '', 'Brasil');
+      if (!address) throw new Error('Local não encontrado. Tente incluir cidade e estado.');
+      initializeLocationPicker(address.lat, address.lng);
+      setComplaintLocation(address.lat, address.lng, true);
+      $('#locationPickerWrap').hidden = false;
+      message('Local encontrado no mapa.');
+    } catch (error) {
+      message(error.message);
+    }
+  };
+
+  $('#locationSearch').onkeydown = function (event) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      $('#searchLocation').click();
+    }
   };
 
   $('#complaintForm').onsubmit = async function (event) {
@@ -353,6 +392,9 @@ function setupForms() {
       $('#reporterEmail').value = 'morador@cidade.org';
       $('#neighborhood').value = 'Jardim Central';
       $('#cityState').value = 'São Paulo - SP';
+      $('#coordinates').textContent = 'Nenhuma localização selecionada';
+      $('#locationSearch').value = '';
+      $('#locationPickerWrap').hidden = true;
       $('#imageName').textContent = 'Nenhuma imagem selecionada';
       message('Denúncia salva no banco da sessão.');
       location.hash = 'denuncias';
@@ -402,6 +444,52 @@ function setupForms() {
       message('ONG salva.');
     } catch (error) { message(error.message); }
   };
+}
+
+var locationPickerMap = null;
+var locationPickerMarker = null;
+
+function setComplaintLocation(lat, lng, showReverseAddress) {
+  var form = $('#complaintForm');
+  form.dataset.lat = String(lat);
+  form.dataset.lng = String(lng);
+  $('#coordinates').textContent = 'Localização: ' + lat.toFixed(6) + ', ' + lng.toFixed(6);
+  if (showReverseAddress) reverseGeocode(lat, lng);
+}
+
+function initializeLocationPicker(initialLat, initialLng) {
+  if (!window.L) {
+    message('O mapa não está disponível. Verifique sua conexão.');
+    return;
+  }
+
+  var lat = Number(initialLat);
+  var lng = Number(initialLng);
+  var hasInitialLocation = Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0;
+  if (!hasInitialLocation) {
+    lat = defaultLocation.lat;
+    lng = defaultLocation.lng;
+  }
+
+  if (!locationPickerMap) {
+    locationPickerMap = L.map('locationPickerMap').setView([lat, lng], Number.isFinite(initialLat) ? 16 : 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(locationPickerMap);
+  } else {
+    locationPickerMap.setView([lat, lng], 16);
+  }
+
+  if (locationPickerMarker) locationPickerMarker.remove();
+  locationPickerMarker = L.marker([lat, lng], { draggable: true }).addTo(locationPickerMap);
+  locationPickerMarker.on('dragend', function (event) {
+    var point = event.target.getLatLng();
+    setComplaintLocation(point.lat, point.lng, true);
+  });
+  locationPickerMap.on('click', function (event) {
+    locationPickerMarker.setLatLng(event.latlng);
+    setComplaintLocation(event.latlng.lat, event.latlng.lng, true);
+  });
+
+  setTimeout(function () { locationPickerMap.invalidateSize(); }, 100);
 }
 
 function route() {
